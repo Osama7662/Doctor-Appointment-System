@@ -57,4 +57,17 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(error,HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(AppointmentCancellationException.class)
+    public ResponseEntity<ErrorDto> handleCancelledAppointments(
+            AppointmentCancellationException ex,
+            WebRequest req
+            ){
+        ErrorDto error = new ErrorDto(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                req.getDescription(false)
+        );
+        return new ResponseEntity<>(error,HttpStatus.BAD_REQUEST);
+    }
 }

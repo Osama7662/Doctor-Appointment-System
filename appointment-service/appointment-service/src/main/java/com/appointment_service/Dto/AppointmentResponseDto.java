@@ -18,7 +18,7 @@ public class AppointmentResponseDto {
 
     private Long patientId;
 
-    private Long DoctorId;
+    private Long doctorId;
 
     private LocalDate appointmentDate;
 
