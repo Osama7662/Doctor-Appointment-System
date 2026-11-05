@@ -50,4 +50,17 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(error,HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(DoctorAccessDeniedException.class)
+    public ResponseEntity<ErrorDto> handleAccessDeniedException(
+            DoctorAccessDeniedException ex,
+            WebRequest request
+    ){
+        ErrorDto error = new ErrorDto(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                request.getDescription(false)
+        );
+        return new ResponseEntity<>(error,HttpStatus.FORBIDDEN);
+    }
 }

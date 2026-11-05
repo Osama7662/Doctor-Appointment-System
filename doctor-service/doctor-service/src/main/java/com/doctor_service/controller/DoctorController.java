@@ -1,10 +1,13 @@
 package com.doctor_service.controller;
 
 import com.doctor_service.Dto.*;
+import com.doctor_service.exception.DoctorAccessDeniedException;
 import com.doctor_service.service.DoctorService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -37,6 +40,45 @@ public class DoctorController {
         response.setStatus(201);
         response.setData(foundDoctorDto);
         return new ResponseEntity<>(response,HttpStatus.OK);
+    }
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponseDto<DoctorResponseDto>> getDoctorByUserId(
+            @PathVariable Long userId
+    ) {
+
+        // Get the currently authenticated user
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        // Extract authenticated user's ID
+        Long authenticatedUserId =
+                (Long) authentication.getPrincipal();
+
+        // Check whether requested userId belongs to authenticated user
+        if (!authenticatedUserId.equals(userId)) {
+
+            throw new DoctorAccessDeniedException(
+                    "You are not allowed to access another doctor's profile"
+            );
+        }
+
+        // Fetch doctor profile
+        DoctorResponseDto foundDoctorDto =
+                doctorService.getDoctorByUserId(userId);
+
+        // Prepare response
+        ApiResponseDto<DoctorResponseDto> response =
+                new ApiResponseDto<>();
+
+        response.setMessage(
+                "Doctor Fetched Successfully With UserId: " + userId
+        );
+
+        response.setStatus(HttpStatus.OK.value());
+
+        response.setData(foundDoctorDto);
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/getAll")

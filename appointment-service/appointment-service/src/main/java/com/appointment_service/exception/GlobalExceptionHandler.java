@@ -1,5 +1,6 @@
 package com.appointment_service.exception;
 
+import org.springframework.security.access.AccessDeniedException;
 import com.appointment_service.Dto.ErrorDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -7,7 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
-
+import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,5 +70,35 @@ public class GlobalExceptionHandler {
                 req.getDescription(false)
         );
         return new ResponseEntity<>(error,HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorDto> handleResponseStatusException(
+            ResponseStatusException ex,
+            WebRequest request
+    ) {
+
+        ErrorDto error = new ErrorDto(
+                LocalDateTime.now(),
+                ex.getReason(),
+                request.getDescription(false)
+        );
+
+        return new ResponseEntity<>(
+                error,
+                ex.getStatusCode()
+        );
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorDto> handleAccessDeniedException(
+            AccessDeniedException ex,
+            WebRequest request
+    ){
+        ErrorDto error = new ErrorDto(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                request.getDescription(false)
+        );
+        return new ResponseEntity<>(error,HttpStatus.FORBIDDEN);
     }
 }

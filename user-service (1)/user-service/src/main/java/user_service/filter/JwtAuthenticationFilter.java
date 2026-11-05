@@ -49,9 +49,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    System.out.println("AUTHENTICATED USER: " + email);
+                    System.out.println("USER AUTHORITIES: " + userDetails.getAuthorities());
                 }
 
             } catch (JWTVerificationException | UsernameNotFoundException | DisabledException exception) {
+                exception.printStackTrace();
                 SecurityContextHolder.clearContext();
                 response.sendError(
                         HttpServletResponse.SC_UNAUTHORIZED,

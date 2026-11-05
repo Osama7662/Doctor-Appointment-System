@@ -9,6 +9,9 @@ import user_service.exception.InvalidCredentialsException;
 import user_service.exception.UserAlreadyExistsException;
 import user_service.repository.AppUserRepository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 public class UserService {
 
@@ -40,10 +43,10 @@ public class UserService {
         user.setMobile(requestDto.getMobile());
         String role = requestedRole.toUpperCase();
         user.setRole(role);
-        if (role.equalsIgnoreCase("Doctor")){
-            user.setApprovalStatus("Pending");
+        if (role.equalsIgnoreCase("DOCTOR")){
+            user.setApprovalStatus("PENDING");
         }else {
-            user.setApprovalStatus("Approved");
+            user.setApprovalStatus("APPROVED");
         }
 
         AppUser saved = userRepository.save(user);
@@ -77,6 +80,7 @@ public class UserService {
         BeanUtils.copyProperties(user,loginResponseDto);
 
         String Token = jwtService.generateToken(  //--> these email,mobile,role arguments will be passed to generateToken Method in JwtService.
+                user.getId(),
                 user.getEmail(),
                 user.getMobile(),
                 user.getRole()
@@ -130,4 +134,80 @@ public class UserService {
         user.setActive(false);
         userRepository.save(user);
     }
+
+
+    public List<PendingDoctorResponseDto> getPendingDoctors() {
+
+        List<AppUser> pendingDoctors =
+                userRepository.findByRoleAndApprovalStatus(
+                        "DOCTOR",
+                        "PENDING"
+                );
+
+        return pendingDoctors.stream()
+                .map(user -> {
+                    PendingDoctorResponseDto dto =
+                            new PendingDoctorResponseDto();
+
+                    dto.setId(user.getId());
+                    dto.setName(user.getName());
+                    dto.setEmail(user.getEmail());
+                    dto.setMobile(user.getMobile());
+                    dto.setRole(user.getRole());
+                    dto.setApprovalStatus(user.getApprovalStatus());
+
+                    return dto;
+                })
+                .toList();
+    }
+
+    public PendingDoctorResponseDto approveDoctor(Long doctorId){
+        AppUser doctor = userRepository.findById(doctorId)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "Doctor Not Found!!"
+                ));
+        if (!doctor.getRole().equalsIgnoreCase("DOCTOR")){
+            throw new InvalidCredentialsException(
+                    "User Is Not A Doctor!!"
+            );
+        }
+        if (!doctor.getApprovalStatus().equalsIgnoreCase("PENDING")){
+            throw new InvalidCredentialsException(
+                    "Nothing Is Pending For Approval!!"
+            );
+        }
+
+        doctor.setApprovalStatus("APPROVED");
+
+        AppUser savedDoctor = userRepository.save(doctor);
+
+        PendingDoctorResponseDto approvedDoctorDto = new PendingDoctorResponseDto();
+
+        BeanUtils.copyProperties(savedDoctor,approvedDoctorDto);
+        return approvedDoctorDto;
+    }
+
+    public PendingDoctorResponseDto rejectDoctor(Long doctorId){
+        AppUser doctor = userRepository.findById(doctorId)
+                .orElseThrow(() -> new InvalidCredentialsException(
+                        "Doctor Not Found!!"
+                ));
+        if (!doctor.getRole().equalsIgnoreCase("DOCTOR")){
+            throw new InvalidCredentialsException(
+                    "User Is Not A Doctor"
+            );
+        }
+        if (!doctor.getApprovalStatus().equalsIgnoreCase("PENDING")){
+            throw new InvalidCredentialsException(
+                    "Nothing Is Pending To Reject!!"
+            );
+        }
+        doctor.setApprovalStatus("REJECTED");
+        AppUser savedDoctor = userRepository.save(doctor);
+
+        PendingDoctorResponseDto rejectedDoctorDto = new PendingDoctorResponseDto();
+        BeanUtils.copyProperties(savedDoctor,rejectedDoctorDto);
+        return rejectedDoctorDto;
+    }
+
 }
