@@ -1,0 +1,34 @@
+
+# Maven build output
+**/target/
+
+# Maven wrapper generated files
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Java compiled files
+*.class
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Git backup
+/git-backup/
+
+# Accidental temporary file
+/micro-services/-files --stage
