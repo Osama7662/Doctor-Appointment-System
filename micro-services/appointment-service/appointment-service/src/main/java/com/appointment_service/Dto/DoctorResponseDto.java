@@ -11,5 +11,6 @@ public class DoctorResponseDto {
 
     private Long doctorId;
     private Long userId;
+    private Boolean availableForAppointments;
 
 }

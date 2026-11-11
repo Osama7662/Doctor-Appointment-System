@@ -6,6 +6,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import user_service.dto.PendingDoctorResponseDto;
 import user_service.dto.UserResponseDto;
+import user_service.dto.UserValidationDto;
 import user_service.service.UserService;
 
 import java.util.List;
@@ -54,6 +55,35 @@ public class AdminController {
         response.setMessage("Doctor's Application Has Been Rejected For DoctorId: "+doctorId);
         response.setStatus(HttpStatus.OK.value());
         response.setData(rejectedDoctor);
+        return new ResponseEntity<>(response,HttpStatus.OK);
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/users/deactivate/{userId}")
+    public ResponseEntity<UserResponseDto<UserValidationDto>> deactivateUser(
+            @PathVariable Long userId
+    ) {
+        UserValidationDto userValidationDto =
+                userService.deactivateUserById(userId);
+        UserResponseDto<UserValidationDto> response = new UserResponseDto<>();
+        response.setMessage("User Account Deactivated!!");
+        response.setStatus(HttpStatus.OK.value());
+        response.setData(userValidationDto);
+        return new ResponseEntity<>(response,HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/users/activate/{userId}")
+    public ResponseEntity<UserResponseDto<UserValidationDto>> activateUser(
+            @PathVariable Long userId
+    ){
+        UserValidationDto userValidationDto =
+                userService.activateUserById(userId);
+        UserResponseDto<UserValidationDto> response = new UserResponseDto<>();
+        response.setMessage("User's Account Activated");
+        response.setStatus(HttpStatus.OK.value());
+        response.setData(userValidationDto);
         return new ResponseEntity<>(response,HttpStatus.OK);
     }
 }

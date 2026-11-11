@@ -2,6 +2,7 @@ package com.appointment_service.service;
 
 import com.appointment_service.Dto.*;
 import com.appointment_service.client.DoctorClient;
+import com.appointment_service.client.UserServiceClient;
 import com.appointment_service.entity.Appointment;
 import com.appointment_service.enums.AppointmentStatus;
 import com.appointment_service.exception.AppointmentCancellationException;
@@ -28,32 +29,107 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final DoctorClient doctorClient;
     private final AppointmentRepository appointmentRepository;
     private final ModelMapper modelMapper;
+    private final UserServiceClient userServiceClient;
 
-    public AppointmentServiceImpl(DoctorClient doctorClient, AppointmentRepository appointmentRepository, ModelMapper modelMapper) {
+    public AppointmentServiceImpl(DoctorClient doctorClient, AppointmentRepository appointmentRepository, ModelMapper modelMapper, UserServiceClient userServiceClient) {
         this.doctorClient = doctorClient;
         this.appointmentRepository = appointmentRepository;
         this.modelMapper = modelMapper;
+        this.userServiceClient = userServiceClient;
+    }
+
+    private UserValidationDto validateApprovedDoctor(Long userId) {
+
+        UserResponseDto<UserValidationDto> response =
+                userServiceClient.validateUser(userId);
+
+        if (response == null || response.getData() == null) {
+            throw new AccessDeniedException(
+                    "User validation failed"
+            );
+        }
+
+        UserValidationDto userData = response.getData();
+
+        if (!userData.isActive()) {
+            throw new AccessDeniedException(
+                    "This Doctor's Account is inactive!!"
+            );
+        }
+
+        if (!"DOCTOR".equalsIgnoreCase(userData.getRole())) {
+            throw new AccessDeniedException(
+                    "Only doctors can access doctor appointments"
+            );
+        }
+
+        if (!"APPROVED".equalsIgnoreCase(userData.getApprovalStatus())) {
+            throw new AccessDeniedException(
+                    "Your doctor account is not approved"
+            );
+        }
+
+        return userData;
     }
 
 
     @Override
-    public AppointmentResponseDto bookAppointment(AppointmentRequestDto requestDto,Long authenticatedUserId) {
+    public AppointmentResponseDto bookAppointment(
+            AppointmentRequestDto requestDto,
+            Long authenticatedUserId) {
 
+        // Step 1: Validate patient ownership
         if (!requestDto.getPatientId().equals(authenticatedUserId)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "You are not allowed to book an appointment for another patient"
             );
         }
-        Appointment appointment = modelMapper.map(requestDto, Appointment.class);
+
+        // Step 2: Fetch doctor profile using doctorId
+        ApiResponseDto<DoctorResponseDto> doctorResponse =
+                doctorClient.getDoctorById(requestDto.getDoctorId());
+
+        // Step 3: Check whether doctor profile exists
+        if (doctorResponse == null || doctorResponse.getData() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Doctor profile not found"
+            );
+        }
+
+        // Step 4: Extract doctor details
+        DoctorResponseDto doctorData = doctorResponse.getData();
+
+        // Step 5: Check doctor availability
+        if (!Boolean.TRUE.equals(doctorData.getAvailableForAppointments())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Doctor is not available for appointments"
+            );
+        }
+
+        // Step 6: Validate doctor's User Service account
+        validateApprovedDoctor(doctorData.getUserId());
+
+        // Step 7: Create appointment
+        Appointment appointment =
+                modelMapper.map(requestDto, Appointment.class);
 
         appointment.setStatus(AppointmentStatus.PENDING);
         appointment.setCreatedAt(LocalDateTime.now());
 
-        Appointment savedAppointment = appointmentRepository.save(appointment);
+        // Step 8: Save appointment
+        Appointment savedAppointment =
+                appointmentRepository.save(appointment);
 
-        return modelMapper.map(savedAppointment,AppointmentResponseDto.class);
+        // Step 9: Convert entity into DTO
+        return modelMapper.map(
+                savedAppointment,
+                AppointmentResponseDto.class
+        );
     }
+
 
     @Override
     public AppointmentResponseDto getAppointmentById(Long id) {
@@ -69,9 +145,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     public PageResponseDto<AppointmentResponseDto> getAllAppointments(int pageNo, int pageSize, String sortBy, String sortDir) {
        Sort sort;
        if (sortDir.equalsIgnoreCase("desc")){
-           sort = Sort.by(sortBy).ascending();
-       } else {
            sort = Sort.by(sortBy).descending();
+       } else {
+           sort = Sort.by(sortBy).ascending();
        }
         PageRequest pageRequest = PageRequest.of(pageNo, pageSize, sort);
         Page<Appointment> allAppointments = appointmentRepository.findAll(pageRequest);
@@ -117,7 +193,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         // Admin can access any doctor's appointments
         if (!isAdmin) {
 
-            // Step 2: Fetch doctor using authenticated user ID
+            // Step 1: Validate doctor account through User Service
+            validateApprovedDoctor(authenticatedUserId);
+
+            // Step 2: Fetch doctor profile using authenticated user ID
             String authorization =
                     (String) SecurityContextHolder.getContext()
                             .getAuthentication()
@@ -129,7 +208,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                             authorization
                     );
 
-            // Step 3: Check whether doctor data exists
+            // Step 3: Check whether doctor profile exists
             if (doctorResponse == null || doctorResponse.getData() == null) {
                 throw new AccessDeniedException(
                         "Authenticated user is not a registered doctor"
@@ -139,7 +218,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             // Step 4: Extract doctor details
             DoctorResponseDto doctorData = doctorResponse.getData();
 
-            // Step 5: Check ownership
+            // Step 5: Verify doctor ownership
             if (!doctorData.getDoctorId().equals(doctorId)) {
                 throw new AccessDeniedException(
                         "You are not authorized to view appointments for this doctor"

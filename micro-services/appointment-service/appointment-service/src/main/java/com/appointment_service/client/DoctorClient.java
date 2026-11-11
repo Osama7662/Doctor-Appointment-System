@@ -18,4 +18,9 @@ public interface DoctorClient {
             @RequestHeader("Authorization") String authorization
     );
 
+    @GetMapping("/api/v1/doctors/read/{doctorId}")
+    ApiResponseDto<DoctorResponseDto> getDoctorById(
+            @PathVariable("doctorId") Long doctorId
+    );
+
 }

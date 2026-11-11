@@ -210,4 +210,47 @@ public class UserService {
         return rejectedDoctorDto;
     }
 
+    public UserValidationDto deactivateUserById(Long userId){
+
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new InvalidCredentialsException("User Not Found!!"));
+
+        if (!user.getRole().equalsIgnoreCase("DOCTOR")
+                && !user.getRole().equalsIgnoreCase("PATIENT"))
+        {
+            throw new InvalidCredentialsException( "Only Patient and Doctor Accounts Can Be Deactivated!!");
+        }
+        if (!user.isActive()){
+            throw new InvalidCredentialsException("This User's Account Is Already Deactivated!!");
+        }
+        user.setActive(false);
+        AppUser savedUser = userRepository.save(user);
+
+        UserValidationDto userDto = new UserValidationDto();
+        BeanUtils.copyProperties(savedUser,userDto);
+        return userDto;
+    }
+
+    public UserValidationDto activateUserById(Long userId){
+
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new InvalidCredentialsException("User Not Found!!")
+                );
+        if (!user.getRole().equalsIgnoreCase("DOCTOR")
+                  && !user.getRole().equalsIgnoreCase("PATIENT"))
+        {
+            throw new InvalidCredentialsException("User's Account Is Not A Doctor's Account");
+        }
+        if (user.isActive()){
+            throw new InvalidCredentialsException("This User's Account Is Already Activated!!");
+        }
+        user.setActive(true);
+        AppUser savedUser = userRepository.save(user);
+
+        UserValidationDto userValidationDto = new UserValidationDto();
+        BeanUtils.copyProperties(savedUser,userValidationDto);
+        return userValidationDto;
+    }
 }
